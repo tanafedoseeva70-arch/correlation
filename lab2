@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+import pandas as pd
+
+from grader_contracts.correlation_tasks import (
+    BrainCorrelationSummary,
+    BrainDataInput,
+)
+
+
+def analyze_brain_correlations(
+    data: BrainDataInput,
+) -> BrainCorrelationSummary:
+    df = pd.read_csv(
+        data.csv_path,
+        sep="\t",
+        na_values=["NA"],
+    )
+
+    features = ["FSIQ", "VIQ", "PIQ", "Weight", "Height"]
+
+    men = df.loc[df["Gender"] == "Male"]
+    women = df.loc[df["Gender"] == "Female"]
+
+    men_mri_correlation = {
+        feature: float(
+            men[feature].corr(men["MRI_Count"], method="pearson")
+        )
+        for feature in features
+    }
+
+    women_mri_correlation = {
+        feature: float(
+            women[feature].corr(women["MRI_Count"], method="pearson")
+        )
+        for feature in features
+    }
+
+    valid_correlations = [
+        (feature, correlation)
+        for group in (men_mri_correlation, women_mri_correlation)
+        for feature, correlation in group.items()
+        if pd.notna(correlation)
+    ]
+
+    strongest_mri_feature = max(
+        valid_correlations,
+        key=lambda item: abs(item[1]),
+        default=("", 0.0),
+    )[0]
+
+    return BrainCorrelationSummary(
+        men_count=int(len(men)),
+        women_count=int(len(women)),
+        women_mri_correlation=women_mri_correlation,
+        men_mri_correlation=men_mri_correlation,
+        strongest_mri_feature=strongest_mri_feature,
+    )
